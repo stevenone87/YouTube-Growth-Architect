@@ -2,12 +2,47 @@
 import React from 'react';
 import { CategoryWeights, CATEGORIES } from '../types';
 
+const PRESETS: { [key: string]: CategoryWeights } = {
+  'Balanced': {
+    'Click-Through Rate': 25,
+    'Audience Retention': 25,
+    'Engagement': 25,
+    'SEO & Discoverability': 25,
+  },
+  'Growth-focused': {
+    'Click-Through Rate': 35,
+    'Audience Retention': 20,
+    'Engagement': 15,
+    'SEO & Discoverability': 30,
+  },
+  'Engagement-focused': {
+    'Click-Through Rate': 20,
+    'Audience Retention': 30,
+    'Engagement': 35,
+    'SEO & Discoverability': 15,
+  },
+};
+
 interface WeightSlidersProps {
   weights: CategoryWeights;
   setWeights: React.Dispatch<React.SetStateAction<CategoryWeights | null>>;
+  initialWeights: CategoryWeights | null;
 }
 
-const WeightSliders: React.FC<WeightSlidersProps> = ({ weights, setWeights }) => {
+const WeightSliders: React.FC<WeightSlidersProps> = ({ weights, setWeights, initialWeights }) => {
+  const applyPreset = (presetName: string) => {
+    const preset = PRESETS[presetName];
+    if (preset) {
+      setWeights(preset);
+    }
+  };
+
+  const handleReset = () => {
+    if (initialWeights) {
+      setWeights(initialWeights);
+    }
+  };
+
   const handleSliderChange = (changedCategory: string, newValue: number) => {
     setWeights(prevWeights => {
       if (!prevWeights) return null;
@@ -78,6 +113,15 @@ const WeightSliders: React.FC<WeightSlidersProps> = ({ weights, setWeights }) =>
           />
         </div>
       ))}
+      <div className="pt-4 border-t border-slate-700">
+          <h4 className="text-sm font-semibold text-gray-400 mb-2">Presets</h4>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <button onClick={() => applyPreset('Balanced')} className="px-3 py-2 text-sm bg-slate-700 hover:bg-slate-600 rounded-md transition-colors">Balanced</button>
+              <button onClick={() => applyPreset('Growth-focused')} className="px-3 py-2 text-sm bg-slate-700 hover:bg-slate-600 rounded-md transition-colors">Growth</button>
+              <button onClick={() => applyPreset('Engagement-focused')} className="px-3 py-2 text-sm bg-slate-700 hover:bg-slate-600 rounded-md transition-colors">Engagement</button>
+              <button onClick={handleReset} disabled={!initialWeights} className="px-3 py-2 text-sm bg-slate-700 hover:bg-slate-600 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Reset</button>
+          </div>
+      </div>
     </div>
   );
 };

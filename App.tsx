@@ -3,9 +3,9 @@ import React, { useState, useCallback } from 'react';
 // Fix: Correctly import all necessary types from the now-fixed types.ts
 import { StrategicBrief, PublishingKit, LoadingState, CategoryWeights } from './types';
 // Fix: Import all necessary service functions, including the new ones for evaluation and refinement
-import { generatePublishingKit, analyzeScriptForBrief, generateImageFromPrompt, evaluatePublishingKit, refinePublishingKit } from './services/geminiService';
+import { generatePublishingKit, analyzeScriptForBrief, generateImageFromPrompt, evaluatePublishingKit, refinePublishingKit, generateSlideSuggestions } from './services/geminiService';
 import LoadingIndicator from './components/LoadingIndicator';
-import { CopyIcon, CheckIcon, RefreshCwIcon, DownloadIcon, SparklesIcon } from './components/Icons';
+import { CopyIcon, CheckIcon, RefreshCwIcon, DownloadIcon, SparklesIcon, LightbulbIcon } from './components/Icons';
 import RadarChartComponent from './components/RadarChart';
 import WeightSliders from './components/WeightSliders';
 
@@ -46,7 +46,10 @@ const App: React.FC = () => {
   const [thumbnailImages, setThumbnailImages] = useState<(string | null)[]>([null, null, null]);
   const [selectedTitle, setSelectedTitle] = useState<string | null>(null);
   const [categoryWeights, setCategoryWeights] = useState<CategoryWeights | null>(null);
+  const [initialCategoryWeights, setInitialCategoryWeights] = useState<CategoryWeights | null>(null);
   const [generationPhase, setGenerationPhase] = useState<'initial' | 'refined'>('initial');
+  const [slideSuggestions, setSlideSuggestions] = useState<string[]>([]);
+  const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false);
 
 
   const handleBriefChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -273,6 +276,37 @@ const App: React.FC = () => {
                     ))}
                  </div>
               </section>
+
+              {generationPhase === 'refined' && (
+                <section className="bg-slate-800/50 p-6 rounded-lg shadow-xl">
+                  <h2 className="text-2xl font-semibold mb-4 text-gray-300 border-b border-slate-700 pb-3">Part 3: AI Slide Suggestions</h2>
+                  <div className="mt-4 text-center">
+                    {isGeneratingSuggestions ? (
+                      <div className="flex items-center justify-center gap-3 text-lg">
+                        <RefreshCwIcon className="h-6 w-6 animate-spin" />
+                        <span>Generating ideas...</span>
+                      </div>
+                    ) : slideSuggestions.length > 0 ? (
+                      <div className="text-left space-y-3">
+                        {slideSuggestions.map((suggestion, index) => (
+                          <div key={index} className="flex items-start gap-3 p-3 bg-slate-800 rounded-md">
+                            <LightbulbIcon className="h-5 w-5 mt-1 text-yellow-300 flex-shrink-0" />
+                            <p className="text-gray-300">{suggestion}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-gray-400 mb-4">Take your content to the next level. Get AI-powered suggestions for your presentation slides.</p>
+                        <button onClick={handleGenerateSlideIdeas} disabled={isGeneratingSuggestions} className="bg-yellow-600 hover:bg-yellow-500 disabled:bg-slate-600 text-white font-bold py-3 px-6 rounded-md transition-all duration-300 transform hover:scale-105 text-lg inline-flex items-center gap-2">
+                          <LightbulbIcon className="h-6 w-6" />
+                          Get Slide Quality Suggestions
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </section>
+              )}
             </div>
           ) : (
             // Form View
