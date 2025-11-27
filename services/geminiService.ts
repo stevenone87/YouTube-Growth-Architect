@@ -284,3 +284,54 @@ export const generateImageFromPrompt = async (prompt: string): Promise<string> =
     throw new Error("Failed to generate the image from the prompt.");
   }
 };
+export const generateSlideSuggestions = async (brief: StrategicBrief, kit: PublishingKit): Promise<string[]> => {
+  const slideSuggestionSchema = {
+    type: Type.OBJECT,
+    properties: {
+      suggestions: {
+        type: Type.ARRAY,
+        description: "A list of actionable suggestions for the presentation slides.",
+        items: {
+          type: Type.STRING,
+          description: "A single, concise suggestion."
+        }
+      }
+    },
+    required: ['suggestions']
+  };
+
+  const prompt = `
+    You are a presentation design expert. Based on the provided strategic brief and publishing kit,
+    generate a list of 5-7 actionable suggestions to improve the quality of the presentation slides.
+    Focus on visual storytelling, clarity, and audience engagement.
+
+    **Strategic Brief:**
+    - Topic: ${brief.topic}
+    - Audience: ${brief.audience}
+    - Outcome: ${brief.outcome}
+
+    **Publishing Kit:**
+    - Title: ${kit.titles.benefitDriven}
+    - Description: ${kit.description}
+
+    Generate a JSON object containing a list of suggestions.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-pro',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: slideSuggestionSchema,
+      },
+    });
+
+    const jsonString = response.text.trim();
+    const parsed = JSON.parse(jsonString) as { suggestions: string[] };
+    return parsed.suggestions;
+  } catch (error) {
+    console.error("Error generating slide suggestions:", error);
+    throw new Error("Failed to generate slide suggestions.");
+  }
+};
