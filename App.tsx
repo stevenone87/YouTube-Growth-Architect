@@ -1,11 +1,23 @@
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { StrategicBrief, PublishingKit, LoadingState, CategoryWeights } from './types';
 import { generatePublishingKit, analyzeSourceForBrief, generateImageFromPrompt, evaluatePublishingKit, refinePublishingKit, suggestWeights } from './services/geminiService';
 import LoadingIndicator from './components/LoadingIndicator';
 import { CopyIcon, CheckIcon, RefreshCwIcon, DownloadIcon, SparklesIcon } from './components/Icons';
 import RadarChartComponent from './components/RadarChart';
 import WeightSliders from './components/WeightSliders';
+
+// Fix: Use the AIStudio interface to avoid type conflicts with existing window.aistudio declaration.
+// This ensures that all declarations of 'aistudio' on the Window interface use the same named type.
+declare global {
+  interface AIStudio {
+    hasSelectedApiKey: () => Promise<boolean>;
+    openSelectKey: () => Promise<void>;
+  }
+  interface Window {
+    aistudio: AIStudio;
+  }
+}
 
 const CopyableBlock: React.FC<{ title: string; content: string; isMono?: boolean; children?: React.ReactNode }> = ({ title, content, isMono = false, children }) => {
   const [isCopied, setIsCopied] = useState(false);
@@ -36,9 +48,27 @@ const App: React.FC = () => {
   const [selectedTitle, setSelectedTitle] = useState<string | null>(null);
   const [categoryWeights, setCategoryWeights] = useState<CategoryWeights | null>(null);
   const [generationPhase, setGenerationPhase] = useState<'initial' | 'refined'>('initial');
-  const [isSuggesting, setIsSuggesting] = useState(false);
+  const [hasApiKey, setHasApiKey] = useState<boolean>(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const checkKey = async () => {
+      if (window.aistudio) {
+        const selected = await window.aistudio.hasSelectedApiKey();
+        setHasApiKey(selected);
+      }
+    };
+    checkKey();
+  }, []);
+
+  const handleSelectKey = async () => {
+    if (window.aistudio) {
+      await window.aistudio.openSelectKey();
+      // Assume success after triggering selection to avoid race condition as per guidelines
+      setHasApiKey(true);
+    }
+  };
 
   const handleBriefChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -96,6 +126,15 @@ const App: React.FC = () => {
 
   const handleRefine = async () => {
     if (!kit || !selectedTitle || !categoryWeights) return;
+    
+    // Check for API key before refinement as it uses Pro models
+    if (!hasApiKey) {
+      const selected = await window.aistudio.hasSelectedApiKey();
+      if (!selected) {
+        await handleSelectKey();
+      }
+    }
+
     setError(null);
     setLoadingState(LoadingState.REFINING_KIT);
     setThumbnailImages([null, null, null]);
@@ -105,12 +144,25 @@ const App: React.FC = () => {
       setKit(refinedKitResult);
       setLoadingState(LoadingState.GENERATING_IMAGES);
       
-      // Passing the selectedTitle to ensure the AI image generator has title-context
-      const imagePromises = refinedKitResult.thumbnails.map(thumb => generateImageFromPrompt(thumb.aiImagePrompt, selectedTitle));
+      const imagePromises = refinedKitResult.thumbnails.map(thumb => 
+        generateImageFromPrompt(thumb.aiImagePrompt, selectedTitle)
+      );
+      
       const generatedImages = await Promise.all(imagePromises);
       setThumbnailImages(generatedImages.map(data => `data:image/png;base64,${data}`));
-    } catch (err) {
-       setError(err instanceof Error ? err.message : 'An unknown error occurred.');
+    } catch (err: any) {
+       console.error(err);
+       // Handle specific API key error by resetting state and prompting for re-selection
+       if (err.message?.includes("Requested entity was not found")) {
+         setError("Project not found. Please re-select a paid API key.");
+         setHasApiKey(false);
+         if (window.aistudio) {
+           await window.aistudio.openSelectKey();
+           setHasApiKey(true);
+         }
+       } else {
+         setError(err instanceof Error ? err.message : 'An unknown error occurred during visual synthesis.');
+       }
     } finally {
        setLoadingState(LoadingState.IDLE);
     }
@@ -144,7 +196,22 @@ const App: React.FC = () => {
         )}
 
         <main className="space-y-10">
-          {error && <div className="bg-red-900/20 border border-red-500/50 p-4 rounded-xl text-red-400 text-sm font-bold uppercase">{error}</div>}
+          {error && (
+            <div className="bg-red-900/20 border border-red-500/50 p-4 rounded-xl text-red-400 text-sm font-bold flex justify-between items-center">
+              <span>{error}</span>
+              {error.includes("API key") && (
+                <button onClick={handleSelectKey} className="bg-red-500 text-white px-3 py-1 rounded text-xs">Select Key</button>
+              )}
+            </div>
+          )}
+
+          {!hasApiKey && generationPhase === 'initial' && kit && (
+            <div className="bg-teal-900/20 border border-teal-500/50 p-6 rounded-2xl text-teal-100 mb-6">
+              <h3 className="font-bold mb-2">Professional Imaging Required</h3>
+              <p className="text-sm mb-4">To generate high-impact professional thumbnails, a paid project API key is required. Visit <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="underline font-bold">Billing Docs</a> for more info.</p>
+              <button onClick={handleSelectKey} className="bg-teal-500 text-black px-6 py-2 rounded-xl font-bold uppercase text-xs tracking-widest">Select Paid API Key</button>
+            </div>
+          )}
 
           {loadingState !== LoadingState.IDLE ? (
             <LoadingIndicator state={loadingState} />

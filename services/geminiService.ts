@@ -1,8 +1,8 @@
 
 import { GoogleGenAI, Type } from '@google/genai';
-import { PublishingKit, StrategicBrief, CategoryWeights, Scene } from '../types';
+import { PublishingKit, StrategicBrief, CategoryWeights } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const publishingKitSchema = {
   type: Type.OBJECT,
@@ -61,6 +61,7 @@ const briefSchema = {
 };
 
 export const analyzeSourceForBrief = async (text: string, base64Image?: string): Promise<StrategicBrief> => {
+    const ai = getAI();
     const parts: any[] = [
       { text: `Analyze the provided materials (text and optional image) to create a YouTube strategic brief. 
                 If an image is provided, use it to infer tone, branding, or subject matter details.
@@ -96,6 +97,7 @@ export const analyzeSourceForBrief = async (text: string, base64Image?: string):
 };
 
 export const generatePublishingKit = async (brief: StrategicBrief): Promise<PublishingKit> => {
+  const ai = getAI();
   const parts: any[] = [
     { text: `You are a world-class YouTube producer. Generate a Publishing Kit + Production Script.
              IMPORTANT: Include high-performing hashtags starting with # in the hashtags field.
@@ -132,6 +134,7 @@ export const generatePublishingKit = async (brief: StrategicBrief): Promise<Publ
 };
 
 export const evaluatePublishingKit = async (kit: PublishingKit): Promise<CategoryWeights> => {
+  const ai = getAI();
   const prompt = `Distribute 100 points across categories for this kit: ${JSON.stringify(kit.titles)} | ${kit.description.substring(0, 100)}`;
   try {
     const response = await ai.models.generateContent({
@@ -159,6 +162,7 @@ export const evaluatePublishingKit = async (kit: PublishingKit): Promise<Categor
 };
 
 export const suggestWeights = async (brief: StrategicBrief): Promise<CategoryWeights> => {
+  const ai = getAI();
   const prompt = `Ideal strategy weights for: ${brief.topic}. Focus on audience: ${brief.audience}. Sum to 100.`;
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
@@ -181,6 +185,7 @@ export const suggestWeights = async (brief: StrategicBrief): Promise<CategoryWei
 };
 
 export const refinePublishingKit = async (brief: StrategicBrief, originalKit: PublishingKit, selectedTitle: string, weights: CategoryWeights): Promise<PublishingKit> => {
+  const ai = getAI();
   const prompt = `Refine this YouTube kit for maximum performance. 
   
   SELECTED STRATEGY: 
@@ -210,17 +215,37 @@ export const refinePublishingKit = async (brief: StrategicBrief, originalKit: Pu
 };
 
 export const generateImageFromPrompt = async (prompt: string, title: string): Promise<string> => {
+  const ai = getAI();
   const fullPrompt = `Create an ultra-professional, high-impact YouTube thumbnail that maximizes CTR.
-  MANDATORY TEXT ELEMENT: The thumbnail must prominently feature the text: "${title}".
-  VISUAL COMPOSITION: ${prompt}.
-  TECHNICAL SPECS: Cinematic lighting, shallow depth of field, 8k resolution, photorealistic textures, vibrant high-contrast colors, rule of thirds, professional graphic design style used by top-tier YouTubers (like MrBeast or Ali Abdaal).
-  Ensure all text is legible and integrated into a stunning, clickable layout.`;
+  MANDATORY TEXT OVERLAY: The image MUST prominently display this text: "${title}".
+  VISUAL CONTENT: ${prompt}.
+  AESTHETIC: High contrast, cinematic lighting, rule of thirds, vibrant colors, professional digital art or photography style. 
+  The text should be bold, readable, and stylishly integrated into the layout.`;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-image',
-    contents: { parts: [{ text: fullPrompt }] },
-  });
-  const part = response.candidates?.[0]?.content?.parts.find(p => p.inlineData);
-  if (!part?.inlineData?.data) throw new Error("Image generation failed");
-  return part.inlineData.data;
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-image-preview',
+      contents: { parts: [{ text: fullPrompt }] },
+      config: {
+        imageConfig: {
+          aspectRatio: "16:9",
+          imageSize: "1K"
+        }
+      }
+    });
+    
+    const candidate = response.candidates?.[0];
+    if (!candidate) throw new Error("No response candidate from image model");
+    
+    const part = candidate.content?.parts.find(p => p.inlineData);
+    if (!part?.inlineData?.data) {
+      console.warn("No inlineData in parts. Parts received:", candidate.content?.parts);
+      throw new Error("Image data was not returned by the model.");
+    }
+    
+    return part.inlineData.data;
+  } catch (error) {
+    console.error("Image generation error:", error);
+    throw error;
+  }
 };
