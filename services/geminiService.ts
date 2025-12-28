@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from '@google/genai';
-import { PublishingKit, StrategicBrief, CategoryWeights } from '../types';
+import { PublishingKit, StrategicBrief, CategoryWeights, Scene } from '../types';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -33,42 +33,20 @@ const publishingKitSchema = {
     },
     scenes: {
       type: Type.ARRAY,
+      description: "A professional script breakdown into scenes.",
       items: {
         type: Type.OBJECT,
         properties: {
           sceneNumber: { type: Type.INTEGER },
-          visual: { type: Type.STRING },
-          audio: { type: Type.STRING },
-          duration: { type: Type.STRING },
-          retentionTactic: { type: Type.STRING, description: "Specific tactic to keep viewers watching (e.g. 'Pattern Interrupt', 'Loop Opening')." }
+          visual: { type: Type.STRING, description: "Visual directions, camera angles, or on-screen graphics." },
+          audio: { type: Type.STRING, description: "The script/dialogue or voiceover text." },
+          duration: { type: Type.STRING, description: "Timing for this segment (e.g., '10s')." }
         },
-        required: ['sceneNumber', 'visual', 'audio', 'duration', 'retentionTactic']
+        required: ['sceneNumber', 'visual', 'audio', 'duration']
       }
-    },
-    hooks: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          style: { type: Type.STRING, description: "e.g. 'Negative Framing', 'Authority', 'Story Start'" },
-          script: { type: Type.STRING },
-          psychology: { type: Type.STRING }
-        },
-        required: ['style', 'script', 'psychology']
-      }
-    },
-    persona: {
-      type: Type.OBJECT,
-      properties: {
-        name: { type: Type.STRING },
-        painPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
-        motivations: { type: Type.STRING }
-      },
-      required: ['name', 'painPoints', 'motivations']
-    },
-    competitorGap: { type: Type.STRING, description: "Analysis of why this specific angle beats existing content." }
+    }
   },
-  required: ['titles', 'description', 'tags', 'thumbnails', 'scenes', 'hooks', 'persona', 'competitorGap']
+  required: ['titles', 'description', 'tags', 'thumbnails', 'scenes']
 };
 
 const briefSchema = {
@@ -81,49 +59,78 @@ const briefSchema = {
     required: ['topic', 'audience', 'outcome']
 };
 
-export const analyzeSourceForBrief = async (text: string): Promise<StrategicBrief> => {
+export const analyzeSourceForBrief = async (text: string, base64Image?: string): Promise<StrategicBrief> => {
+    const parts: any[] = [
+      { text: `Analyze the provided materials (text and optional image) to create a YouTube strategic brief. 
+                If an image is provided, use it to infer tone, branding, or subject matter details.
+                TEXT SOURCE: ${text}` }
+    ];
+
+    if (base64Image) {
+      parts.push({
+        inlineData: {
+          mimeType: "image/jpeg",
+          data: base64Image.split(',')[1] || base64Image
+        }
+      });
+    }
+
     try {
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Analyze this text and create a YouTube strategic brief.
-                  TEXT SOURCE: ${text}`,
+        contents: { parts },
         config: {
           responseMimeType: "application/json",
           responseSchema: briefSchema,
         },
       });
-      return JSON.parse(response.text.trim()) as StrategicBrief;
+  
+      const result = JSON.parse(response.text.trim()) as StrategicBrief;
+      if (base64Image) result.imageData = base64Image;
+      return result;
     } catch (error) {
       console.error("Error analyzing source:", error);
-      throw new Error("Failed to analyze the text material.");
+      throw new Error("Failed to analyze the source material.");
     }
 };
 
 export const generatePublishingKit = async (brief: StrategicBrief): Promise<PublishingKit> => {
+  const parts: any[] = [
+    { text: `You are a world-class YouTube producer. Generate a Publishing Kit + Production Script.
+             BRIEF:
+             - Topic: ${brief.topic}
+             - Audience: ${brief.audience}
+             - Outcome: ${brief.outcome}` }
+  ];
+
+  if (brief.imageData) {
+    parts.push({
+      inlineData: {
+        mimeType: "image/jpeg",
+        data: brief.imageData.split(',')[1] || brief.imageData
+      }
+    });
+  }
+
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
-      contents: `You are a high-level YouTube Content Strategist. Based on the brief, generate a comprehensive Publishing Kit + Production Script.
-                 Focus deeply on viewer psychology and retention.
-                 BRIEF:
-                 - Topic: ${brief.topic}
-                 - Audience: ${brief.audience}
-                 - Outcome: ${brief.outcome}`,
+      contents: { parts },
       config: {
         responseMimeType: "application/json",
         responseSchema: publishingKitSchema,
       },
     });
+
     return JSON.parse(response.text.trim()) as PublishingKit;
   } catch (error) {
     console.error("Error generating kit:", error);
-    throw new Error("Failed to generate the strategic blueprint.");
+    throw new Error("Failed to generate the production blueprint.");
   }
 };
 
 export const evaluatePublishingKit = async (kit: PublishingKit): Promise<CategoryWeights> => {
-  const prompt = `Evaluate this YouTube strategy. Rate 0-100 for each category. Sum doesn't need to be 100, these are independent ratings.
-                  Kit Data: ${JSON.stringify(kit.titles)} | ${kit.competitorGap}`;
+  const prompt = `Distribute 100 points across categories for this kit: ${JSON.stringify(kit.titles)} | ${kit.description.substring(0, 100)}`;
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -145,12 +152,12 @@ export const evaluatePublishingKit = async (kit: PublishingKit): Promise<Categor
     });
     return JSON.parse(response.text.trim());
   } catch (err) {
-    return { 'Clarity & Relevance': 50, 'Emotional Impact': 50, 'Curiosity Gap': 50, 'Visual Appeal': 50, 'SEO Strength': 50 };
+    return { 'Clarity & Relevance': 20, 'Emotional Impact': 20, 'Curiosity Gap': 20, 'Visual Appeal': 20, 'SEO Strength': 20 };
   }
 };
 
 export const suggestWeights = async (brief: StrategicBrief): Promise<CategoryWeights> => {
-  const prompt = `Identify target weight distributions for: ${brief.topic}. Focus on audience: ${brief.audience}. Sum must be 100.`;
+  const prompt = `Ideal strategy weights for: ${brief.topic}. Focus on audience: ${brief.audience}. Sum to 100.`;
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: prompt,
@@ -172,7 +179,7 @@ export const suggestWeights = async (brief: StrategicBrief): Promise<CategoryWei
 };
 
 export const refinePublishingKit = async (brief: StrategicBrief, originalKit: PublishingKit, selectedTitle: string, weights: CategoryWeights): Promise<PublishingKit> => {
-  const prompt = `Synthesize a high-fidelity YouTube strategy. Selected Title: ${selectedTitle}. Targeted Strategy Weights: ${JSON.stringify(weights)}. Original Kit: ${JSON.stringify(originalKit)}`;
+  const prompt = `Refine this YouTube kit. Selected Title: ${selectedTitle}. Focus on these weights: ${JSON.stringify(weights)}. Brief: ${JSON.stringify(brief)}. Original Kit: ${JSON.stringify(originalKit)}`;
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: prompt,
@@ -187,7 +194,7 @@ export const refinePublishingKit = async (brief: StrategicBrief, originalKit: Pu
 export const generateImageFromPrompt = async (prompt: string): Promise<string> => {
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash-image',
-    contents: { parts: [{ text: `YouTube Thumbnail Style, Vivid, High Definition: ${prompt}` }] },
+    contents: { parts: [{ text: `YouTube Thumbnail, High Impact, 4k: ${prompt}` }] },
   });
   const part = response.candidates?.[0]?.content?.parts.find(p => p.inlineData);
   if (!part?.inlineData?.data) throw new Error("Image generation failed");
