@@ -3,7 +3,6 @@ export interface StrategicBrief {
   topic: string;
   audience: string;
   outcome: string;
-  imageData?: string; // Base64 encoded image
 }
 
 export interface Scene {
@@ -11,6 +10,19 @@ export interface Scene {
   visual: string;
   audio: string;
   duration: string;
+  retentionTactic: string;
+}
+
+export interface HookVariation {
+  style: string;
+  script: string;
+  psychology: string;
+}
+
+export interface AudiencePersona {
+  name: string;
+  painPoints: string[];
+  motivations: string;
 }
 
 export interface ThumbnailConcept {
@@ -30,6 +42,9 @@ export interface PublishingKit {
   tags: string;
   thumbnails: ThumbnailConcept[];
   scenes: Scene[];
+  hooks: HookVariation[];
+  persona: AudiencePersona;
+  competitorGap: string;
 }
 
 export enum LoadingState {
