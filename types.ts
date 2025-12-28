@@ -27,6 +27,7 @@ export interface PublishingKit {
     keywordFocused: string;
   };
   description: string;
+  hashtags: string;
   tags: string;
   thumbnails: ThumbnailConcept[];
   scenes: Scene[];

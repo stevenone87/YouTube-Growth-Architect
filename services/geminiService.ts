@@ -16,8 +16,9 @@ const publishingKitSchema = {
       },
       required: ['benefitDriven', 'intrigueDriven', 'keywordFocused']
     },
-    description: { type: Type.STRING },
-    tags: { type: Type.STRING },
+    description: { type: Type.STRING, description: "Detailed video description with timestamps and links." },
+    hashtags: { type: Type.STRING, description: "3-5 high-traffic hashtags starting with # (e.g., #SaaS #AI #Startup)." },
+    tags: { type: Type.STRING, description: "Comma-separated SEO keywords for the tags field." },
     thumbnails: {
       type: Type.ARRAY,
       items: {
@@ -46,7 +47,7 @@ const publishingKitSchema = {
       }
     }
   },
-  required: ['titles', 'description', 'tags', 'thumbnails', 'scenes']
+  required: ['titles', 'description', 'hashtags', 'tags', 'thumbnails', 'scenes']
 };
 
 const briefSchema = {
@@ -97,6 +98,7 @@ export const analyzeSourceForBrief = async (text: string, base64Image?: string):
 export const generatePublishingKit = async (brief: StrategicBrief): Promise<PublishingKit> => {
   const parts: any[] = [
     { text: `You are a world-class YouTube producer. Generate a Publishing Kit + Production Script.
+             IMPORTANT: Include high-performing hashtags starting with # in the hashtags field.
              BRIEF:
              - Topic: ${brief.topic}
              - Audience: ${brief.audience}
@@ -179,7 +181,7 @@ export const suggestWeights = async (brief: StrategicBrief): Promise<CategoryWei
 };
 
 export const refinePublishingKit = async (brief: StrategicBrief, originalKit: PublishingKit, selectedTitle: string, weights: CategoryWeights): Promise<PublishingKit> => {
-  const prompt = `Refine this YouTube kit. Selected Title: ${selectedTitle}. Focus on these weights: ${JSON.stringify(weights)}. Brief: ${JSON.stringify(brief)}. Original Kit: ${JSON.stringify(originalKit)}`;
+  const prompt = `Refine this YouTube kit. Selected Title: ${selectedTitle}. Focus on these weights: ${JSON.stringify(weights)}. Brief: ${JSON.stringify(brief)}. Original Kit: ${JSON.stringify(originalKit)}. Ensure you provide 3-5 relevant #hashtags.`;
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: prompt,

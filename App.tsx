@@ -169,8 +169,13 @@ const App: React.FC = () => {
                           <CopyableBlock title="SEO" content={kit.titles.keywordFocused} />
                         </div>
                       )}
-                      <CopyableBlock title="Description Template" content={kit.description} />
-                      <CopyableBlock title="Search Tags" content={kit.tags} isMono={true} />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <CopyableBlock title="Description Template" content={kit.description} />
+                        <div className="space-y-4">
+                           <CopyableBlock title="#Hashtags" content={kit.hashtags} />
+                           <CopyableBlock title="Search Tags" content={kit.tags} isMono={true} />
+                        </div>
+                      </div>
                     </div>
                   </section>
 
@@ -213,19 +218,24 @@ const App: React.FC = () => {
                   
                   {/* Visual Concepts Bento */}
                   <section className="bg-slate-900/30 border border-slate-800 p-6 rounded-2xl">
-                    <h2 className="text-xl font-bold mb-6">VISUALS</h2>
-                    <div className="space-y-6">
+                    <h2 className="text-xl font-bold mb-6 uppercase tracking-tight">Visual Assets</h2>
+                    <div className="space-y-8">
                       {kit.thumbnails.map((thumb, idx) => (
-                        <div key={idx} className="space-y-3">
-                          <div className="aspect-video bg-slate-950 rounded-lg overflow-hidden border border-slate-800 flex items-center justify-center">
+                        <div key={idx} className="space-y-4 pb-6 border-b border-slate-800 last:border-0">
+                          <div className="aspect-video bg-slate-950 rounded-lg overflow-hidden border border-slate-800 flex items-center justify-center relative">
                             {thumbnailImages[idx] ? (
                               <img src={thumbnailImages[idx]!} className="w-full h-full object-cover" />
                             ) : (
-                              <SparklesIcon className="w-6 h-6 text-slate-800" />
+                              <SparklesIcon className="w-6 h-6 text-slate-800 animate-pulse" />
                             )}
                           </div>
-                          <div className="text-[10px] font-bold text-slate-500 uppercase">{thumb.conceptName}</div>
-                          <p className="text-[10px] text-gray-500 italic">{thumb.psychology}</p>
+                          <div className="space-y-2">
+                            <div className="text-[10px] font-black text-teal-500 uppercase tracking-widest">{thumb.conceptName}</div>
+                            <p className="text-xs text-gray-400 italic leading-relaxed">{thumb.psychology}</p>
+                            <div className="pt-2">
+                               <CopyableBlock title="AI Generation Prompt" content={thumb.aiImagePrompt} isMono />
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>
