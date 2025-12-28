@@ -7,16 +7,11 @@ import { CopyIcon, CheckIcon, RefreshCwIcon, DownloadIcon, SparklesIcon } from '
 import RadarChartComponent from './components/RadarChart';
 import WeightSliders from './components/WeightSliders';
 
-// Fix: Use the AIStudio interface to avoid type conflicts with existing window.aistudio declaration.
-// This ensures that all declarations of 'aistudio' on the Window interface use the same named type.
-declare global {
-  interface AIStudio {
-    hasSelectedApiKey: () => Promise<boolean>;
-    openSelectKey: () => Promise<void>;
-  }
-  interface Window {
-    aistudio: AIStudio;
-  }
+// Fix: Define the AIStudio interface but avoid extending Window globally to prevent modifier conflicts.
+// Instead, use type assertion (window as any).aistudio when accessing it.
+interface AIStudio {
+  hasSelectedApiKey: () => Promise<boolean>;
+  openSelectKey: () => Promise<void>;
 }
 
 const CopyableBlock: React.FC<{ title: string; content: string; isMono?: boolean; children?: React.ReactNode }> = ({ title, content, isMono = false, children }) => {
@@ -54,8 +49,10 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const checkKey = async () => {
-      if (window.aistudio) {
-        const selected = await window.aistudio.hasSelectedApiKey();
+      // Fix: Safely access aistudio from window using type assertion
+      const aistudio = (window as any).aistudio as AIStudio | undefined;
+      if (aistudio) {
+        const selected = await aistudio.hasSelectedApiKey();
         setHasApiKey(selected);
       }
     };
@@ -63,8 +60,10 @@ const App: React.FC = () => {
   }, []);
 
   const handleSelectKey = async () => {
-    if (window.aistudio) {
-      await window.aistudio.openSelectKey();
+    // Fix: Safely access aistudio from window using type assertion
+    const aistudio = (window as any).aistudio as AIStudio | undefined;
+    if (aistudio) {
+      await aistudio.openSelectKey();
       // Assume success after triggering selection to avoid race condition as per guidelines
       setHasApiKey(true);
     }
@@ -129,7 +128,9 @@ const App: React.FC = () => {
     
     // Check for API key before refinement as it uses Pro models
     if (!hasApiKey) {
-      const selected = await window.aistudio.hasSelectedApiKey();
+      // Fix: Safely access aistudio from window using type assertion
+      const aistudio = (window as any).aistudio as AIStudio | undefined;
+      const selected = aistudio ? await aistudio.hasSelectedApiKey() : false;
       if (!selected) {
         await handleSelectKey();
       }
@@ -156,8 +157,10 @@ const App: React.FC = () => {
        if (err.message?.includes("Requested entity was not found")) {
          setError("Project not found. Please re-select a paid API key.");
          setHasApiKey(false);
-         if (window.aistudio) {
-           await window.aistudio.openSelectKey();
+         // Fix: Safely access aistudio from window using type assertion
+         const aistudio = (window as any).aistudio as AIStudio | undefined;
+         if (aistudio) {
+           await aistudio.openSelectKey();
            setHasApiKey(true);
          }
        } else {

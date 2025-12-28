@@ -216,36 +216,31 @@ export const refinePublishingKit = async (brief: StrategicBrief, originalKit: Pu
 
 export const generateImageFromPrompt = async (prompt: string, title: string): Promise<string> => {
   const ai = getAI();
-  const fullPrompt = `Create an ultra-professional, high-impact YouTube thumbnail that maximizes CTR.
-  MANDATORY TEXT OVERLAY: The image MUST prominently display this text: "${title}".
-  VISUAL CONTENT: ${prompt}.
-  AESTHETIC: High contrast, cinematic lighting, rule of thirds, vibrant colors, professional digital art or photography style. 
-  The text should be bold, readable, and stylishly integrated into the layout.`;
+  const fullPrompt = `Professional YouTube thumbnail. 
+  MANDATORY TEXT OVERLAY: "${title}". 
+  VISUAL CONCEPT: ${prompt}. 
+  STYLE: Cinematic lighting, ultra-detailed, high contrast, vibrant colors, professional composition (rule of thirds), 4k aesthetic. 
+  Ensure text is bold, readable, and captures attention immediately.`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-image-preview',
-      contents: { parts: [{ text: fullPrompt }] },
+    const response = await ai.models.generateImages({
+      model: 'imagen-4.0-generate-001',
+      prompt: fullPrompt,
       config: {
-        imageConfig: {
-          aspectRatio: "16:9",
-          imageSize: "1K"
-        }
-      }
+        numberOfImages: 1,
+        outputMimeType: 'image/jpeg',
+        aspectRatio: '16:9',
+      },
     });
-    
-    const candidate = response.candidates?.[0];
-    if (!candidate) throw new Error("No response candidate from image model");
-    
-    const part = candidate.content?.parts.find(p => p.inlineData);
-    if (!part?.inlineData?.data) {
-      console.warn("No inlineData in parts. Parts received:", candidate.content?.parts);
-      throw new Error("Image data was not returned by the model.");
+
+    const base64EncodeString: string = response.generatedImages[0].image.imageBytes;
+    if (!base64EncodeString) {
+      throw new Error("Imagen 4 returned an empty response.");
     }
     
-    return part.inlineData.data;
+    return base64EncodeString;
   } catch (error) {
-    console.error("Image generation error:", error);
+    console.error("Imagen generation error:", error);
     throw error;
   }
 };
