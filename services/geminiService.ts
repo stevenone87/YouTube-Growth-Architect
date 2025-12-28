@@ -181,7 +181,23 @@ export const suggestWeights = async (brief: StrategicBrief): Promise<CategoryWei
 };
 
 export const refinePublishingKit = async (brief: StrategicBrief, originalKit: PublishingKit, selectedTitle: string, weights: CategoryWeights): Promise<PublishingKit> => {
-  const prompt = `Refine this YouTube kit. Selected Title: ${selectedTitle}. Focus on these weights: ${JSON.stringify(weights)}. Brief: ${JSON.stringify(brief)}. Original Kit: ${JSON.stringify(originalKit)}. Ensure you provide 3-5 relevant #hashtags.`;
+  const prompt = `Refine this YouTube kit for maximum performance. 
+  
+  SELECTED STRATEGY: 
+  - Main Title: "${selectedTitle}"
+  - Strategic Priority Weights: ${JSON.stringify(weights)}
+  
+  BRIEF CONTEXT:
+  - Topic: ${brief.topic}
+  - Target Audience: ${brief.audience}
+  
+  TASK:
+  1. Refine the metadata and scenes to align perfectly with the selected title and weights.
+  2. Generate 3-5 relevant #hashtags for maximum platform visibility.
+  3. CREATE THUMBNAIL CONCEPTS: These must be professional, high-impact, and clickable. 
+     CRITICAL: The aiImagePrompt for each concept MUST LITERALLY INCLUDE the text of the selected title ("${selectedTitle}") as the primary focal text element to be displayed in the image.
+     Describe a vivid, professional-grade visual composition that uses bold typography and cinematic aesthetics to command attention.`;
+  
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: prompt,
@@ -193,10 +209,16 @@ export const refinePublishingKit = async (brief: StrategicBrief, originalKit: Pu
   return JSON.parse(response.text.trim());
 };
 
-export const generateImageFromPrompt = async (prompt: string): Promise<string> => {
+export const generateImageFromPrompt = async (prompt: string, title: string): Promise<string> => {
+  const fullPrompt = `Create an ultra-professional, high-impact YouTube thumbnail that maximizes CTR.
+  MANDATORY TEXT ELEMENT: The thumbnail must prominently feature the text: "${title}".
+  VISUAL COMPOSITION: ${prompt}.
+  TECHNICAL SPECS: Cinematic lighting, shallow depth of field, 8k resolution, photorealistic textures, vibrant high-contrast colors, rule of thirds, professional graphic design style used by top-tier YouTubers (like MrBeast or Ali Abdaal).
+  Ensure all text is legible and integrated into a stunning, clickable layout.`;
+
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash-image',
-    contents: { parts: [{ text: `YouTube Thumbnail, High Impact, 4k: ${prompt}` }] },
+    contents: { parts: [{ text: fullPrompt }] },
   });
   const part = response.candidates?.[0]?.content?.parts.find(p => p.inlineData);
   if (!part?.inlineData?.data) throw new Error("Image generation failed");

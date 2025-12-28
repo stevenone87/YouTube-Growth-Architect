@@ -104,7 +104,9 @@ const App: React.FC = () => {
       const refinedKitResult = await refinePublishingKit(brief, kit, selectedTitle, categoryWeights);
       setKit(refinedKitResult);
       setLoadingState(LoadingState.GENERATING_IMAGES);
-      const imagePromises = refinedKitResult.thumbnails.map(thumb => generateImageFromPrompt(thumb.aiImagePrompt));
+      
+      // Passing the selectedTitle to ensure the AI image generator has title-context
+      const imagePromises = refinedKitResult.thumbnails.map(thumb => generateImageFromPrompt(thumb.aiImagePrompt, selectedTitle));
       const generatedImages = await Promise.all(imagePromises);
       setThumbnailImages(generatedImages.map(data => `data:image/png;base64,${data}`));
     } catch (err) {
