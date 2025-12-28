@@ -1,8 +1,16 @@
-// Fix: Create the actual type definitions that were missing.
+
 export interface StrategicBrief {
   topic: string;
   audience: string;
   outcome: string;
+  imageData?: string; // Base64 encoded image
+}
+
+export interface Scene {
+  sceneNumber: number;
+  visual: string;
+  audio: string;
+  duration: string;
 }
 
 export interface ThumbnailConcept {
@@ -21,11 +29,12 @@ export interface PublishingKit {
   description: string;
   tags: string;
   thumbnails: ThumbnailConcept[];
+  scenes: Scene[];
 }
 
 export enum LoadingState {
   IDLE = 'IDLE',
-  ANALYZING_SCRIPT = 'ANALYZING_SCRIPT',
+  ANALYZING_SOURCE = 'ANALYZING_SOURCE',
   GENERATING_KIT = 'GENERATING_KIT',
   EVALUATING_KIT = 'EVALUATING_KIT',
   REFINING_KIT = 'REFINING_KIT',
